@@ -95,4 +95,5 @@ if uploaded:
             st.write(f"- **Tes yang digunakan:** {test_name}")
             st.write(f"- **Nilai Statistik:** {coef:.4f}")
             st.write(f"- **p-value:** {pval:.4f}")
-            st.write(f"- **Kesimpulan:** {conclusi
+            st.write(f"- **Kesimpulan:** {conclusion}")
+            st.markdown("---")
