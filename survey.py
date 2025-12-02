@@ -3,10 +3,55 @@ import pandas as pd
 import scipy.stats as stats
 from itertools import combinations
 
-st.title("Aplikasi Analisis Survey")
 
-# Upload file
-uploaded = st.file_uploader("Upload file Excel", type=["xlsx", "xls"])
+# ====================================================
+# Fungsi otomatis memilih Pearson, Spearman, Chi-square
+# ====================================================
+def automatic_test(x, y):
+
+    is_numeric_x = pd.api.types.is_numeric_dtype(x)
+    is_numeric_y = pd.api.types.is_numeric_dtype(y)
+
+    # --------------------------------------
+    # Jika keduanya numeric → Pearson / Spearman
+    # --------------------------------------
+    if is_numeric_x and is_numeric_y:
+
+        # Uji normalitas (Shapiro)
+        p_x = stats.shapiro(x.dropna())[1]
+        p_y = stats.shapiro(y.dropna())[1]
+
+        # Pearson jika keduanya normal
+        if p_x > 0.05 and p_y > 0.05:
+            test_name = "Pearson"
+            coef, pval = stats.pearsonr(x, y)
+        else:
+            test_name = "Spearman"
+            coef, pval = stats.spearmanr(x, y)
+
+    # --------------------------------------
+    # Jika salah satu kategorikal → Chi-square
+    # --------------------------------------
+    else:
+        test_name = "Chi-Square"
+        contingency = pd.crosstab(x, y)
+        chi2, pval, dof, expected = stats.chi2_contingency(contingency)
+        coef = chi2
+
+    # Interpretasi kesimpulan
+    conclusion = "Ada hubungan yang signifikan." if pval < 0.05 else "Tidak ada hubungan signifikan."
+
+    return test_name, coef, pval, conclusion
+
+
+
+# ====================================================
+#                  STREAMLIT APP
+# ====================================================
+
+st.title("Aplikasi Analisis Data Survei")
+
+uploaded = st.file_uploader("Upload File Excel", type=["xlsx", "xls"])
 
 if uploaded:
     df = pd.read_excel(uploaded)
@@ -14,9 +59,9 @@ if uploaded:
     st.subheader("Preview Data")
     st.dataframe(df.head())
 
-    # ============================
-    # ANALISIS DESKRIPTIF
-    # ============================
+    # ========================
+    # Analisis Deskriptif
+    # ========================
     st.subheader("Analisis Deskriptif")
 
     desc_cols = st.multiselect("Pilih kolom untuk deskriptif", df.columns)
@@ -25,67 +70,29 @@ if uploaded:
         st.write(df[desc_cols].describe(include="all"))
 
 
-    # ============================
-    # ANALISIS ASOSIASI
-    # ============================
-    st.subheader("Analisis Asosiasi (Korelasi/Hubungan)")
+    # ========================
+    # Analisis Asosiasi
+    # ========================
+    st.subheader("Analisis Asosiasi (Hubungan Variabel)")
 
-    assoc_cols = st.multiselect("Pilih kolom untuk asosiasi", df.columns)
+    assoc_cols = st.multiselect("Pilih kolom untuk analisis asosiasi", df.columns)
 
     if len(assoc_cols) >= 2:
 
-        st.markdown("### Matriks Korelasi (untuk numeric)")
+        st.markdown("### Matriks Korelasi (untuk variabel numerik saja)")
         corr = df[assoc_cols].corr(numeric_only=True)
         st.dataframe(corr)
 
-        st.markdown("### Analisis Hubungan Antar Variabel")
+        st.markdown("### Hasil Analisis Hubungan Variabel")
 
         for col1, col2 in combinations(assoc_cols, 2):
+            x = df[col1]
+            y = df[col2]
 
-            # Deteksi tipe data
-            is_numeric = (
-                pd.api.types.is_numeric_dtype(df[col1]) and
-                pd.api.types.is_numeric_dtype(df[col2])
-            )
+            test_name, coef, pval, conclusion = automatic_test(x, y)
 
-            # ============================
-            # Numeric vs Numeric
-            # ============================
-            if is_numeric:
-                # Uji normalitas Shapiro
-                p1 = stats.shapiro(df[col1])[1]
-                p2 = stats.shapiro(df[col2])[1]
-
-                if p1 > 0.05 and p2 > 0.05:
-                    test = "Pearson"
-                    coef, pval = stats.pearsonr(df[col1], df[col2])
-                else:
-                    test = "Spearman"
-                    coef, pval = stats.spearmanr(df[col1], df[col2])
-
-            # ============================
-            # Jika kategorikal -> Chi-square
-            # ============================
-            else:
-                test = "Chi-Square"
-                contingency = pd.crosstab(df[col1], df[col2])
-                chi2, pval, dof, expected = stats.chi2_contingency(contingency)
-                coef = chi2
-
-            # ============================
-            # Kesimpulan
-            # ============================
-            if pval < 0.05:
-                conclusion = "Ada hubungan yang signifikan."
-            else:
-                conclusion = "Tidak ada hubungan signifikan."
-
-            # ============================
-            # OUTPUT
-            # ============================
-            st.write(f"**{col1} vs {col2}**")
-            st.write(f"Tes digunakan : **{test}**")
-            st.write(f"Nilai statistik : `{coef:.4f}`")
-            st.write(f"p-value : `{pval:.4f}`")
-            st.write(f"Kesimpulan : **{conclusion}**")
-            st.markdown("---")
+            st.write(f"#### {col1} vs {col2}")
+            st.write(f"- **Tes yang digunakan:** {test_name}")
+            st.write(f"- **Nilai Statistik:** {coef:.4f}")
+            st.write(f"- **p-value:** {pval:.4f}")
+            st.write(f"- **Kesimpulan:** {conclusi
