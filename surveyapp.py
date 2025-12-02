@@ -25,6 +25,36 @@ if uploaded:
         st.write("Matriks Korelasi:")
         st.dataframe(corr)
 
+        st.write("
+### Analisis Hubungan Antar Variabel")
+        for col1, col2 in combinations(assoc_cols, 2):
+            val = corr.loc[col1, col2]
+            is_numeric = pd.api.types.is_numeric_dtype(df[col1]) and pd.api.types.is_numeric_dtype(df[col2])
+
+            if is_numeric:
+                p1 = stats.shapiro(df[col1])[1]
+                p2 = stats.shapiro(df[col2])[1]
+                if p1 > 0.05 and p2 > 0.05:
+                    test = "Pearson"
+                    coef, pval = stats.pearsonr(df[col1], df[col2])
+                else:
+                    test = "Spearman"
+                    coef, pval = stats.spearmanr(df[col1], df[col2])
+            else:
+                test = "Chi-Square"
+                contingency = pd.crosstab(df[col1], df[col2])
+                chi2, pval, dof, expected = stats.chi2_contingency(contingency)
+                coef = chi2
+
+            conclusion = "Ada hubungan yang signifikan" if pval < 0.05 else "Tidak ada hubungan signifikan"
+
+            st.write(f"**{col1} vs {col2}**")
+            st.write(f"Tes yang digunakan: **{test}**")
+            st.write(f"Nilai statistik: {coef:.3f}")
+            st.write(f"p-value: {pval:.4f}")
+            st.write(f"Kesimpulan: **{conclusion}**
+")
+
         st.write("Interpretasi Sederhana:")
         for col1, col2 in combinations(assoc_cols, 2):
             val = corr.loc[col1, col2]
